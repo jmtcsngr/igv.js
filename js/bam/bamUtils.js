@@ -70,7 +70,7 @@ var igv = (function (igv) {
          */
         decodeBamHeader: function (ba, genome) {
 
-            var magic, samHeaderLen, samHeader, chrToIndex, chrNames, chrAliasTable, alias;
+            var magic, samHeaderLen, samHeader, alias;
 
             magic = readInt(ba, 0);
             if (magic !== BAM1_MAGIC_NUMBER) {
@@ -87,11 +87,69 @@ var igv = (function (igv) {
             var nRef = readInt(ba, samHeaderLen + 8);
             var p = samHeaderLen + 12;
 
-            chrToIndex = {};
-            chrNames = [];
-            chrAliasTable = {};
+            var referenceData = igv.BamUtils.decodeReferenceData(ba, nRef, genome, p);
 
-            for (i = 0; i < nRef; ++i) {
+            return {
+                magicNumber:   magic,
+                size:          referenceData.p,
+                chrNames:      referenceData.chrNames,
+                chrToIndex:    referenceData.chrToIndex,
+                chrAliasTable: referenceData.chrAliasTable
+            };
+        },
+
+        /**
+         * Decodes data from the BAM2 header
+         * @throws if bam2_hdr_flags are set
+         * @param  {Uint8Array} ba byte array with data
+         * @param  {object} genome
+         * @return {{ magicNumer: number, size: number, chrNames: Array, chrToIndex: ({}|*), chrAliasTable: ({}|*) }}
+         */
+        decodeBam2Header: function(ba, genome) {
+            var magic, samHeaderLen, samHeader, alias;
+            var bam2headerFlags;
+
+            bam2headerFlags = readUint(ba, 4);
+
+            if (bam2headerFlags !== 0) {
+                throw 'unexpected BAM2 header flags decoded as set';
+            }
+
+            samHeaderLen = readInt(ba, 8);
+
+            samHeader    = '';
+            for (var i = 0; i < samHeaderLen; ++i) {
+                samHeader += String.fromCharCode(ba[ i + 12]);
+            }
+
+            var nRef = readInt(ba, samHeaderLen + 12);
+            var p = samHeaderLen + 16;
+
+            var referenceData = igv.BamUtils.decodeReferenceData(ba, nRef, genome, p);
+
+            return {
+                magicNumber:   magic,
+                size:          referenceData.p,
+                chrNames:      referenceData.chrNames,
+                chrToIndex:    referenceData.chrToIndex,
+                chrAliasTable: referenceData.chrAliasTable
+            };
+        },
+
+        /**
+         * Decodes reference data from SAM header
+         * @param  {Uint8Array} ba byte array with BAM
+         * @param  {number} nRef   number of references to decode
+         * @param  {object} genome
+         * @param  {number} p      [description]
+         * @return {{p: number, chrNames: Array, chrToIndex: ({}|*), chrAliasTable: ({}|*)}}
+         */
+        decodeReferenceData: function(ba, nRef, genome, p) {
+            var chrToIndex = {};
+            var chrNames = [];
+            var chrAliasTable = {};
+
+            for (var i = 0; i < nRef; ++i) {
                 var lName = readInt(ba, p);
                 var name = '';
                 for (var j = 0; j < lName - 1; ++j) {
@@ -112,13 +170,11 @@ var igv = (function (igv) {
             }
 
             return {
-                magicNumber: magic,
-                size: p,
-                chrNames: chrNames,
-                chrToIndex: chrToIndex,
+                p:             p,
+                chrToIndex:    chrToIndex,
+                chrNames:      chrNames,
                 chrAliasTable: chrAliasTable
             };
-
         },
 
         bam_tag2cigar: function(ba, block_end, seq_offset, lseq, al, cigarArray) {
@@ -478,6 +534,28 @@ var igv = (function (igv) {
 
     function readShort(ba, offset) {
         return (ba[offset + 1] << 8) | (ba[offset]);
+    }
+
+    /**
+     * Read unsigned int from 32 bit little-endian
+     *
+     * Bitwise operations are only safe for int32. Use >>> 0 to show intention
+     * of unsigned operation. Otherwise a bit will be used for sign.
+     *
+     * @example
+     * var c = new Uint8Array([0xFF, 0xFF, 0xFF, 0xFF]);
+     * readUInt(c, 0).toString(16);
+     * > 'ffffffff'
+     *
+     * @param  {Uint8Array} ba byte array with little endian encoded int
+     * @param  {number} offset where to start reading the bytes
+     * @return {number}        number with decoded value
+     */
+    function readUInt(ba, offset) {
+        if (ba.length < ( offset + 4 )) {
+            throw 'Array index out of bounds when reading UInt32';
+        }
+        return (((ba[offset + 3] << 24) | (ba[offset + 2] << 16) | (ba[offset + 1] << 8) | (ba[offset])) >>> 0);
     }
 
     /**
