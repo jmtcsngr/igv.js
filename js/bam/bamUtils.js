@@ -136,7 +136,7 @@ var igv = (function (igv) {
             bam2headerFlags = readUInt(ba, 4);
 
             if (bam2headerFlags !== 0) {
-                throw 'unexpected BAM2 header flags decoded as set';
+                throw 'BAM2 header flags set but not supported';
             }
 
             samHeaderLen = readInt(ba, 8);
@@ -409,6 +409,27 @@ var igv = (function (igv) {
                 }
                 offset = blockEnd;
             }
+        },
+
+        decodeBam2Records: function(ba, offset, alignmentContainer, min, max, chrIdx, chrNames, filter) {
+            var bam2_flags, l_read_name, mq, bin, n_cigar_op, flag;
+            var blockSize, blockEnd, refID, pos, l_seq, next_refID, next_refpos, tlen, read_name, cigar, seq, qual;
+
+            // iterate
+            bam2_flags = readUInt(ba, offset); pointer += 4;
+            if (bam2_flags !== 0) {
+                throw 'BAM2 record flags set but not supported';
+            }
+
+            blockSize  = readInt(ba, pointer); pointer += 4;
+
+            blockEnd   = offset + 4 + blockSize;
+
+            // TODO Check blockend does not go over ba length
+
+            refID = readInt(pointer); pointer += 4;
+
+            // end iterate
         },
 
         decodeSamRecords: function (sam, alignmentContainer, chr, min, max, filter) {

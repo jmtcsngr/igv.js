@@ -57,6 +57,30 @@ function runBAMTests() {
         });
     });
 
+    asyncTest("bam2", function () {
+
+        var chr = "E-coli-K12.fa",
+            beg = 200,
+            end = 7000000,
+            bamReader;
+
+        bamReader = new igv.BamReader({
+            type: 'bam',
+            url: 'data/bam/ecoli_bigreads_sort.bam',
+            label: 'BAM unit test'
+        });
+
+        bamReader.readAlignments(chr, beg, end).then(function (alignmentContainer) {
+            var alignments = alignmentContainer.alignments;
+            ok(alignments, "alignments");
+            equal(4, alignments.length, "alignments.length");
+
+            start();
+        }).catch(function (error) {
+            ok(false, error);  // failed
+        });
+    });
+
     //
     // asyncTest("alignments for range", function () {
     //
