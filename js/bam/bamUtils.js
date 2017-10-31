@@ -35,6 +35,9 @@ var igv = (function (igv) {
     var BAM1_MAGIC_BYTES = new Uint8Array([0x42, 0x41, 0x4d, 0x01]); // BAM\1
     var BAM1_MAGIC_NUMBER = readInt(BAM1_MAGIC_BYTES, 0);
 
+    var BAM2_MAGIC_BYTES = new Uint8Array([0x42, 0x41, 0x4d, 0x02]); // BAM\2
+    var BAM2_MAGIC_NUMBER = readInt(BAM2_MAGIC_BYTES, 0);
+
     igv.BamUtils = {
 
         readHeader: function (url, options, genome) {
@@ -70,24 +73,21 @@ var igv = (function (igv) {
          */
         decodeBamHeader: function (ba, genome) {
 
-            var magic, samHeaderLen, samHeader, alias;
+            var magic, headerData;
 
             magic = readInt(ba, 0);
-            if (magic !== BAM1_MAGIC_NUMBER) {
-                throw new Error('BAM header contains an invalid BAM magic');
+            switch (magic) {
+                case BAM1_MAGIC_NUMBER:
+                    headerData = igv.BamUtils.decodeBam1Header(ba, genome);
+                    break;
+                case BAM2_MAGIC_NUMBER:
+                    headerData = igv.BamUtils.decodeBam2Header(ba, genome);
+                    break;
+                default:
+                    throw new Error('BAM header contains an invalid BAM magic');
             }
 
-            samHeaderLen = readInt(ba, 4);
-            samHeader = '';
-
-            for (var i = 0; i < samHeaderLen; ++i) {
-                samHeader += String.fromCharCode(ba[i + 8]);
-            }
-
-            var nRef = readInt(ba, samHeaderLen + 8);
-            var p = samHeaderLen + 12;
-
-            var referenceData = igv.BamUtils.decodeReferenceData(ba, nRef, genome, p);
+            var referenceData = igv.BamUtils.decodeReferenceData(ba, headerData.nRef, genome, headerData.p);
 
             return {
                 magicNumber:   magic,
@@ -99,17 +99,41 @@ var igv = (function (igv) {
         },
 
         /**
+         * Decodes data from the BAM1 header
+         * @param  {Uint8Array} ba byte array with BAM data
+         * @return {{ samHeader: String, nRef: number, p: number }}
+         */
+        decodeBam1Header: function(ba) {
+            var samHeaderLen, samHeader;
+
+            samHeaderLen = readInt(ba, 4);
+            samHeader = '';
+
+            for (var i = 0; i < samHeaderLen; ++i) {
+                samHeader += String.fromCharCode(ba[i + 8]);
+            }
+
+            var nRef = readInt(ba, samHeaderLen + 8);
+            var p = samHeaderLen + 12;
+
+            return {
+                samHeader: samHeader,
+                nRef:      nRef,
+                p:         p
+            };
+        },
+
+        /**
          * Decodes data from the BAM2 header
          * @throws if bam2_hdr_flags are set
-         * @param  {Uint8Array} ba byte array with data
-         * @param  {object} genome
-         * @return {{ magicNumer: number, size: number, chrNames: Array, chrToIndex: ({}|*), chrAliasTable: ({}|*) }}
+         * @param  {Uint8Array} ba byte array with BAM data
+         * @return {{ samHeader: String, nRef: number, p: number }}
          */
-        decodeBam2Header: function(ba, genome) {
-            var magic, samHeaderLen, samHeader, alias;
+        decodeBam2Header: function(ba) {
+            var samHeaderLen, samHeader;
             var bam2headerFlags;
 
-            bam2headerFlags = readUint(ba, 4);
+            bam2headerFlags = readUInt(ba, 4);
 
             if (bam2headerFlags !== 0) {
                 throw 'unexpected BAM2 header flags decoded as set';
@@ -125,14 +149,10 @@ var igv = (function (igv) {
             var nRef = readInt(ba, samHeaderLen + 12);
             var p = samHeaderLen + 16;
 
-            var referenceData = igv.BamUtils.decodeReferenceData(ba, nRef, genome, p);
-
             return {
-                magicNumber:   magic,
-                size:          referenceData.p,
-                chrNames:      referenceData.chrNames,
-                chrToIndex:    referenceData.chrToIndex,
-                chrAliasTable: referenceData.chrAliasTable
+                samHeader: samHeader,
+                nRef:      nRef,
+                p:         p
             };
         },
 
@@ -162,6 +182,7 @@ var igv = (function (igv) {
                 chrNames[i] = name;
 
                 if (genome) {
+                    var alias;
                     alias = genome.getChromosomeName(name);
                     chrAliasTable[alias] = name;
                 }
