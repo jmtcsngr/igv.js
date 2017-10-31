@@ -65,7 +65,8 @@ var igv = (function (igv) {
 
                         chrIdx = self.header.chrToIndex[chr];
                         alignmentContainer = new igv.AlignmentContainer(chr, start, end);
-                        igv.BamUtils.decodeBamRecords(ba, self.header.size, alignmentContainer, start, end, chrIdx, self.header.chrNames);
+                        var decoder = igv.BamUtils.getBamRecordDecoder(self.header.magicNumber);
+                        decoder(ba, self.header.size, alignmentContainer, start, end, chrIdx, self.header.chrNames);
                         alignmentContainer.finish()
                         fulfill(alignmentContainer);
                     })

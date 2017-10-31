@@ -255,6 +255,20 @@ var igv = (function (igv) {
             return true;
         },
 
+        getBamRecordDecoder: function(magicNumber) {
+            if(typeof magicNumber !== 'number') {
+                throw 'BAM magic number must be of type number';
+            }
+            switch (magicNumber) {
+                case BAM1_MAGIC_NUMBER:
+                    return igv.BamUtils.decodeBam1Records;
+                case BAM2_MAGIC_NUMBER:
+                    return igv.BamUtils.decodeBam1Records;
+                default:
+                    throw new Error('Unsupported BAM magic number');
+            }
+        },
+
         /**
          *
          * @param ba                 bytes to decode as an UInt8Array
@@ -266,7 +280,7 @@ var igv = (function (igv) {
          * @param chrNames            array of chromosome names
          * @param filter             a igv.BamFilter object
          */
-        decodeBamRecords: function (ba, offset, alignmentContainer, min, max, chrIdx, chrNames, filter) {
+        decodeBam1Records: function (ba, offset, alignmentContainer, min, max, chrIdx, chrNames, filter) {
 
             var blockSize, blockEnd, alignment, blocks, refID, pos, bin_mq_nl, bin, mq, nl, flag_nc, flag, nc, lseq, tlen,
                 mateChrIdx, matePos, readName, j, p, lengthOnRef, cigar, c, cigarArray, seq, seqBytes, qualArray;

@@ -118,7 +118,8 @@ var igv = (function (igv) {
                                         .then(function (compressed) {
 
                                             var ba = new Uint8Array(igv.unbgzf(compressed)); //new Uint8Array(igv.unbgzf(compressed)); //, c.maxv.block - c.minv.block + 1));
-                                            igv.BamUtils.decodeBamRecords(ba, c.minv.offset, alignmentContainer, bpStart, bpEnd, chrId, self.indexToChr, self.filter);
+                                            var decoder = igv.BamUtils.getBamRecordDecoder(self.magicNumber);
+                                            decoder(ba, c.minv.offset, alignmentContainer, bpStart, bpEnd, chrId, self.indexToChr, self.filter);
 
                                             fulfill(alignmentContainer);
 
@@ -181,6 +182,7 @@ var igv = (function (igv) {
                 bam.chrToIndex = header.chrToIndex;
                 bam.indexToChr = header.chrNames;
                 bam.chrAliasTable = header.chrAliasTable;
+                bam.magicNumber   = header.magicNumber;
                 return bam.chrToIndex;
             });
         }
